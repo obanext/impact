@@ -1,0 +1,20 @@
+# Python-bestanden
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtuele omgevingen
+venv/
+env/
+.venv/
+.env
+
+# IDE-gerelateerde bestanden
+.vscode/
+.idea/
+*.iml
+
+# Log- en cachebestanden
+*.log
+*.sqlite3
