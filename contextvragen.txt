@@ -1,9 +1,0 @@
-{
-    "context": "Je interviewt een bezoeker over een ervaring in of met de OBA.",
-    "vragen": [
-        "Wat is je postcode?",
-        "Wat is je leeftijd?",
-        "Welke ervaring heb je met de OBA?",
-        "Wat vond je van deze ervaring?"
-    ]
-}

@@ -19,20 +19,9 @@ function appendMessage(role, text) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-function showTypingIndicator() {
-    const typingIndicator = document.createElement('div');
-    typingIndicator.classList.add('message', 'assistant', 'typing-indicator');
-    typingIndicator.innerHTML = "<span></span><span></span><span></span>";
-    chatBox.appendChild(typingIndicator);
-    chatBox.scrollTop = chatBox.scrollHeight;
-    return typingIndicator;
-}
-
 async function startInterview() {
-    // Toon het eerste systeembericht
     appendMessage('assistant', "Hoi! We willen je wat vragen stellen om de OBA beter voor je te maken. Het duurt ongeveer twee minuten en je krijgt een plaatje of een wens, bedankt alvast! De vragen worden nu geladen.");
 
-    // Toon de laadindicator
     const typingIndicator = showTypingIndicator();
 
     try {
@@ -40,10 +29,7 @@ async function startInterview() {
         const data = await response.json();
         
         threadId = data.thread_id;
-        
-        // Verwijder de laadindicator
         typingIndicator.remove();
-
         appendMessage('assistant', data.reply);
     } catch (error) {
         typingIndicator.remove();
@@ -62,8 +48,6 @@ async function sendMessage() {
     
     appendMessage('user', text);
     userInput.value = '';
-    
-    // Disable input tijdelijk
     userInput.disabled = true;
     sendBtn.disabled = true;
 
@@ -78,9 +62,7 @@ async function sendMessage() {
 
         const data = await response.json();
 
-        // Verwijder de typing-indicator
         typingIndicator.remove();
-
         appendMessage('assistant', data.reply);
     } catch (error) {
         typingIndicator.remove();

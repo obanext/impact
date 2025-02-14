@@ -2,19 +2,33 @@ from flask import Flask, request, jsonify, render_template
 import openai
 import os
 import json
+import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', template_folder='templates')
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 ASSISTANT_ID = os.getenv("ASSISTANT_ID")
 
-def load_context_questions():
-    """Leest de JSON uit contextvragen.txt"""
-    with open("contextvragen.txt", "r", encoding="utf-8") as file:
-        return json.load(file)
+# Laad de volledige CSV zonder filtering
+def load_questions():
+    csv_path = "contextvragen.csv"
+    df = pd.read_csv(csv_path, delimiter=";")  # Laad volledige CSV zonder filtering
+
+    questions = []
+    for _, row in df.iterrows():
+        question_data = {
+            "onderdeel": row["onderdeel"],
+            "vraag": row["body"],
+            "soort": row["soort"],
+            "opties": row["opties"].split(";") if pd.notna(row["opties"]) else None,
+            "validatie": row["validatie"] == "ja"
+        }
+        questions.append(question_data)
+
+    return questions
 
 @app.route('/')
 def index():
@@ -23,56 +37,47 @@ def index():
 @app.route('/start', methods=['POST'])
 def start():
     try:
-        # Maak een nieuwe thread aan
+        # Start een nieuwe OpenAI thread
         thread = openai.beta.threads.create()
         thread_id = thread.id
 
-        # Stuur de eerste user message ("START")
         openai.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
             content="START"
         )
 
-        # Start een nieuwe run met de assistant
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=ASSISTANT_ID
         )
 
-        # Wacht tot de assistant antwoordt
         while True:
             run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             if run_status.status == "completed":
                 messages = openai.beta.threads.messages.list(thread_id=thread_id)
-                
-                # De eerste reactie is "QUESTIONDB", dit moeten we negeren
+
                 if messages.data[0].content[0].text.value.strip() == "QUESTIONDB":
-                    
-                    # Laad de context en vragen uit de txt file
-                    context_questions = load_context_questions()
-                    
-                    # Stuur de JSON als system message naar de assistant
+                    questions = load_questions()  # Laad ALLE vragen zonder filtering
+
                     openai.beta.threads.messages.create(
                         thread_id=thread_id,
                         role="user",
-                        content=json.dumps(context_questions)
+                        content=json.dumps(questions)
                     )
 
-                    # Start een nieuwe run zodat de assistant de vragen begint te stellen
                     run = openai.beta.threads.runs.create(
                         thread_id=thread_id,
                         assistant_id=ASSISTANT_ID
                     )
 
-                    # Wacht opnieuw tot de assistant antwoordt
                     while True:
                         run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
                         if run_status.status == "completed":
                             messages = openai.beta.threads.messages.list(thread_id=thread_id)
                             first_real_message = messages.data[0].content[0].text.value
                             return jsonify({'reply': first_real_message, 'thread_id': thread_id})
-                
+
                 return jsonify({'reply': messages.data[0].content[0].text.value, 'thread_id': thread_id})
 
     except Exception as e:
@@ -86,20 +91,17 @@ def chat():
         thread_id = data.get('thread_id')
         user_message = data.get('message')
 
-        # Stuur bericht van gebruiker naar de bestaande thread
         openai.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
             content=user_message
         )
 
-        # Start een nieuwe run met de assistant
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=ASSISTANT_ID
         )
 
-        # Wacht tot de assistant antwoordt
         while True:
             run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             if run_status.status == "completed":
@@ -112,6 +114,5 @@ def chat():
         return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
 
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get("PORT", 8080))  # Gebruik poort 8080 voor Vercel
+    port = int(os.environ.get("PORT", 8080))  # Zorg dat Vercel de juiste poort gebruikt
     app.run(host="0.0.0.0", port=port)
