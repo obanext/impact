@@ -1,8 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 import openai
 import os
-import json
-import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,24 +10,6 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 openai.api_key = os.getenv("OPENAI_API_KEY")
 ASSISTANT_ID = os.getenv("ASSISTANT_ID")
 
-# Laad de volledige CSV zonder filtering
-def load_questions():
-    csv_path = "contextvragen.csv"
-    df = pd.read_csv(csv_path, delimiter=";")  # Laad volledige CSV zonder filtering
-
-    questions = []
-    for _, row in df.iterrows():
-        question_data = {
-            "onderdeel": row["onderdeel"],
-            "vraag": row["body"],
-            "soort": row["soort"],
-            "opties": row["opties"].split(";") if pd.notna(row["opties"]) else None,
-            "validatie": row["validatie"] == "ja"
-        }
-        questions.append(question_data)
-
-    return questions
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -37,7 +17,6 @@ def index():
 @app.route('/start', methods=['POST'])
 def start():
     try:
-        # Start een nieuwe OpenAI thread
         thread = openai.beta.threads.create()
         thread_id = thread.id
 
@@ -58,12 +37,17 @@ def start():
                 messages = openai.beta.threads.messages.list(thread_id=thread_id)
 
                 if messages.data[0].content[0].text.value.strip() == "QUESTIONDB":
-                    questions = load_questions()  # Laad ALLE vragen zonder filtering
+                    # Lees de CSV en stuur deze als platte tekst
+                    csv_path = "contextvragen.csv"
+                    with open(csv_path, "r", encoding="utf-8") as file:
+                        csv_data = file.read()
+
+                    print("DEBUG: Stuur CSV-gegevens naar OpenAI")  # Debugging
 
                     openai.beta.threads.messages.create(
                         thread_id=thread_id,
                         role="user",
-                        content=json.dumps(questions)
+                        content=csv_data  # FIX: Stuur de CSV rechtstreeks
                     )
 
                     run = openai.beta.threads.runs.create(
@@ -81,7 +65,7 @@ def start():
                 return jsonify({'reply': messages.data[0].content[0].text.value, 'thread_id': thread_id})
 
     except Exception as e:
-        print(f"Error in /start: {e}")
+        print(f"ERROR in /start: {e}")
         return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
 
 @app.route('/chat', methods=['POST'])
@@ -110,7 +94,7 @@ def chat():
                 return jsonify({'reply': last_message})
     
     except Exception as e:
-        print(f"Error in /chat: {e}")
+        print(f"ERROR in /chat: {e}")
         return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
 
 if __name__ == '__main__':
