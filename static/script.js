@@ -88,14 +88,18 @@ async function sendMessage() {
 
 function handleQuestion(data) {
     try {
-        const questionData = JSON.parse(data);
+        // Controleer of de response in JSON-formaat is
+        if (typeof data === "string") {
+            data = JSON.parse(data);
+        }
 
-        appendMessage('assistant', questionData.vraag);
+        // Toon alleen de vraag in de chat, niet de JSON-code
+        appendMessage('assistant', data.vraag);
 
         let inputElement;
-        if (questionData.soort === "MEERKEUZE") {
+        if (data.soort === "MEERKEUZE") {
             inputElement = document.createElement("div");
-            questionData.opties.forEach(option => {
+            data.opties.forEach(option => {
                 let checkbox = document.createElement("input");
                 checkbox.type = "checkbox";
                 checkbox.value = option;
@@ -109,9 +113,9 @@ function handleQuestion(data) {
                 inputElement.appendChild(label);
                 inputElement.appendChild(document.createElement("br"));
             });
-        } else if (["1KEUZE", "JA/NEE"].includes(questionData.soort)) {
+        } else if (["1KEUZE", "JA/NEE"].includes(data.soort)) {
             inputElement = document.createElement("div");
-            questionData.opties.forEach(option => {
+            data.opties.forEach(option => {
                 let radio = document.createElement("input");
                 radio.type = "radio";
                 radio.name = "choice";
@@ -126,7 +130,7 @@ function handleQuestion(data) {
                 inputElement.appendChild(label);
                 inputElement.appendChild(document.createElement("br"));
             });
-        } else if (questionData.soort === "5SCHAAL") {
+        } else if (data.soort === "5SCHAAL") {
             inputElement = document.createElement("input");
             inputElement.type = "range";
             inputElement.min = 1;
@@ -139,9 +143,11 @@ function handleQuestion(data) {
 
         document.getElementById("input-area").appendChild(inputElement);
     } catch (e) {
+        // Als de data geen JSON is, toon het als normale tekst
         appendMessage('assistant', data);
     }
 }
+
 
 sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keypress', function (e) {
