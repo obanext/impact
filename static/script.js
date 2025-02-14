@@ -39,7 +39,7 @@ async function startInterview() {
         const data = await response.json();
         
         if (data.thread_id) {
-            threadId = data.thread_id;  // Fix: Zorg dat threadId correct wordt opgeslagen
+            threadId = data.thread_id;  // Zorg dat threadId correct wordt opgeslagen
             typingIndicator.remove();
             handleQuestion(data.reply);
         } else {
