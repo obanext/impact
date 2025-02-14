@@ -90,7 +90,7 @@ function handleQuestion(data) {
     try {
         let questionData;
 
-        // Check of de response een JSON-object of een string is
+        // Controleer of de response een JSON-object of een string is
         if (typeof data === "string") {
             try {
                 questionData = JSON.parse(data);
@@ -107,7 +107,7 @@ function handleQuestion(data) {
             return;
         }
 
-        // Toon de vraag zonder JSON-structuur
+        // Toon alleen de vraagtekst in de chat
         appendMessage('assistant', questionData.vraag);
 
         let inputElement;
