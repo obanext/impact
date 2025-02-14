@@ -88,25 +88,26 @@ async function sendMessage() {
 
 function handleQuestion(data) {
     try {
-        // Controleer of de response JSON-formaat heeft
         let questionData;
+
+        // Check of de response een JSON-object of een string is
         if (typeof data === "string") {
             try {
                 questionData = JSON.parse(data);
-            } catch {
+            } catch (e) {
                 questionData = null;
             }
         } else {
             questionData = data;
         }
 
-        // Als het GEEN JSON is, toon het direct als chatbericht
+        // Als het GEEN JSON is of geen geldige vraag bevat, toon het als platte tekst
         if (!questionData || !questionData.vraag) {
             appendMessage('assistant', data);
             return;
         }
 
-        // Toon alleen de vraagtekst in de chat
+        // Toon de vraag zonder JSON-structuur
         appendMessage('assistant', questionData.vraag);
 
         let inputElement;
@@ -117,7 +118,7 @@ function handleQuestion(data) {
                 checkbox.type = "checkbox";
                 checkbox.value = option;
                 checkbox.id = option;
-                
+
                 let label = document.createElement("label");
                 label.htmlFor = option;
                 label.textContent = option;
@@ -134,7 +135,7 @@ function handleQuestion(data) {
                 radio.name = "choice";
                 radio.value = option;
                 radio.id = option;
-                
+
                 let label = document.createElement("label");
                 label.htmlFor = option;
                 label.textContent = option;
@@ -156,7 +157,6 @@ function handleQuestion(data) {
 
         document.getElementById("input-area").appendChild(inputElement);
     } catch (e) {
-        // Toon fout als fallback
         appendMessage('assistant', 'Er is een fout opgetreden bij het verwerken van de vraag.');
     }
 }
