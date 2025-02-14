@@ -88,18 +88,31 @@ async function sendMessage() {
 
 function handleQuestion(data) {
     try {
-        // Controleer of de response in JSON-formaat is
+        // Controleer of de response JSON-formaat heeft
+        let questionData;
         if (typeof data === "string") {
-            data = JSON.parse(data);
+            try {
+                questionData = JSON.parse(data);
+            } catch {
+                questionData = null;
+            }
+        } else {
+            questionData = data;
         }
 
-        // Toon alleen de vraag in de chat, niet de JSON-code
-        appendMessage('assistant', data.vraag);
+        // Als het GEEN JSON is, toon het direct als chatbericht
+        if (!questionData || !questionData.vraag) {
+            appendMessage('assistant', data);
+            return;
+        }
+
+        // Toon alleen de vraagtekst in de chat
+        appendMessage('assistant', questionData.vraag);
 
         let inputElement;
-        if (data.soort === "MEERKEUZE") {
+        if (questionData.soort === "MEERKEUZE") {
             inputElement = document.createElement("div");
-            data.opties.forEach(option => {
+            questionData.opties.forEach(option => {
                 let checkbox = document.createElement("input");
                 checkbox.type = "checkbox";
                 checkbox.value = option;
@@ -113,9 +126,9 @@ function handleQuestion(data) {
                 inputElement.appendChild(label);
                 inputElement.appendChild(document.createElement("br"));
             });
-        } else if (["1KEUZE", "JA/NEE"].includes(data.soort)) {
+        } else if (["1KEUZE", "JA/NEE"].includes(questionData.soort)) {
             inputElement = document.createElement("div");
-            data.opties.forEach(option => {
+            questionData.opties.forEach(option => {
                 let radio = document.createElement("input");
                 radio.type = "radio";
                 radio.name = "choice";
@@ -130,7 +143,7 @@ function handleQuestion(data) {
                 inputElement.appendChild(label);
                 inputElement.appendChild(document.createElement("br"));
             });
-        } else if (data.soort === "5SCHAAL") {
+        } else if (questionData.soort === "5SCHAAL") {
             inputElement = document.createElement("input");
             inputElement.type = "range";
             inputElement.min = 1;
@@ -143,11 +156,10 @@ function handleQuestion(data) {
 
         document.getElementById("input-area").appendChild(inputElement);
     } catch (e) {
-        // Als de data geen JSON is, toon het als normale tekst
-        appendMessage('assistant', data);
+        // Toon fout als fallback
+        appendMessage('assistant', 'Er is een fout opgetreden bij het verwerken van de vraag.');
     }
 }
-
 
 sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keypress', function (e) {
