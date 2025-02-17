@@ -10,7 +10,7 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 ASSISTANT_ID = os.getenv("ASSISTANT_ID")
-CSV_PATH = "contextvragen.csv"  # Zorg dat dit bestand in de root staat
+CSV_PATH = "contextvragen.csv"
 
 @app.route('/')
 def index():
@@ -22,14 +22,12 @@ def start():
         thread = openai.beta.threads.create()
         thread_id = thread.id
 
-        # Stap 1: Stuur "START" naar de assistent
         openai.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
             content="START"
         )
 
-        # Stap 2: Controleer en laad de CSV
         if os.path.exists(CSV_PATH):
             with open(CSV_PATH, "r", encoding="utf-8") as file:
                 csv_data = file.read()
@@ -42,7 +40,6 @@ def start():
         else:
             return jsonify({'reply': 'Fout: CSV-bestand niet gevonden'}), 500
 
-        # Stap 3: Start een nieuwe OpenAI-run
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=ASSISTANT_ID
@@ -56,18 +53,12 @@ def start():
 
                 try:
                     response_data = json.loads(first_real_message)
-
                     if isinstance(response_data, dict) and "vraag" in response_data:
-                        user_message = f"{response_data['vraag']}\n\nHier zijn de opties waaruit je kunt kiezen:\n"
-                        if "opties" in response_data:
-                            user_message += "\n".join(response_data["opties"]) + "\n\nGraag je keuze aangeven."
-
                         return jsonify({
-                            'user_message': user_message,
+                            'user_message': response_data["vraag"],
                             'system_message': response_data,
                             'thread_id': thread_id
                         })
-
                 except json.JSONDecodeError:
                     return jsonify({'user_message': first_real_message, 'thread_id': thread_id})
 
@@ -100,17 +91,11 @@ def chat():
 
                 try:
                     response_data = json.loads(last_message)
-
                     if isinstance(response_data, dict) and "vraag" in response_data:
-                        user_message = f"{response_data['vraag']}\n\nHier zijn de opties waaruit je kunt kiezen:\n"
-                        if "opties" in response_data:
-                            user_message += "\n".join(response_data["opties"]) + "\n\nGraag je keuze aangeven."
-
                         return jsonify({
-                            'user_message': user_message,
+                            'user_message': response_data["vraag"],
                             'system_message': response_data
                         })
-
                 except json.JSONDecodeError:
                     return jsonify({'user_message': last_message})
 
