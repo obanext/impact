@@ -27,8 +27,9 @@ async function startInterview() {
 
         if (data.thread_id) {
             threadId = data.thread_id;
-            if (data.user_message) appendMessage('assistant', data.user_message);
-            if (data.system_message) handleQuestion(data.system_message);
+
+            if (data.user_message) appendMessage('assistant', data.user_message); 
+            if (data.system_message) handleQuestion(data.system_message); // UI genereren, niet tonen in chat
         } else {
             throw new Error("Geen thread_id ontvangen");
         }
@@ -59,8 +60,9 @@ async function sendMessage() {
         });
 
         const data = await response.json();
+        
         if (data.user_message) appendMessage('assistant', data.user_message);
-        if (data.system_message) handleQuestion(data.system_message);
+        if (data.system_message) handleQuestion(data.system_message); // UI genereren, niet tonen in chat
     } catch (error) {
         appendMessage('assistant', 'Er is een fout opgetreden.');
     } finally {
@@ -74,7 +76,7 @@ function handleQuestion(questionData) {
         if (!questionData || !questionData.vraag) return;
 
         let inputArea = document.getElementById("input-area");
-        inputArea.innerHTML = "";
+        inputArea.innerHTML = ""; // Oude invoervelden verwijderen
 
         let inputElement;
         if (questionData.soort === "1KEUZE") {
@@ -110,12 +112,32 @@ function handleQuestion(questionData) {
                 inputElement.appendChild(label);
                 inputElement.appendChild(document.createElement("br"));
             });
+        } else if (questionData.soort === "5SCHAAL") {
+            inputElement = document.createElement("div");
+            let slider = document.createElement("input");
+            slider.type = "range";
+            slider.min = 1;
+            slider.max = 5;
+            slider.value = 3;
+            slider.id = "scale-slider";
+
+            let valueDisplay = document.createElement("span");
+            valueDisplay.id = "scale-value";
+            valueDisplay.textContent = "3"; // Default value
+
+            slider.addEventListener("input", function() {
+                valueDisplay.textContent = slider.value;
+            });
+
+            inputElement.appendChild(slider);
+            inputElement.appendChild(valueDisplay);
         } else {
             inputElement = document.createElement("input");
             inputElement.type = "text";
         }
 
         inputArea.appendChild(inputElement);
+
     } catch (e) {
         appendMessage('assistant', 'Er is een fout opgetreden bij het verwerken van de vraag.');
     }
