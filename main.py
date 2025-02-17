@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 import openai
 import os
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -35,37 +36,22 @@ def start():
             run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             if run_status.status == "completed":
                 messages = openai.beta.threads.messages.list(thread_id=thread_id)
+                first_real_message = messages.data[0].content[0].text.value.strip()
 
-                if messages.data[0].content[0].text.value.strip() == "QUESTIONDB":
-                    # Lees de CSV en stuur deze als platte tekst
-                    csv_path = "contextvragen.csv"
-                    with open(csv_path, "r", encoding="utf-8") as file:
-                        csv_data = file.read()
+                try:
+                    response_data = json.loads(first_real_message)
 
-                    print("DEBUG: Stuur CSV-gegevens naar OpenAI")  # Debugging
+                    if isinstance(response_data, dict) and "vraag" in response_data:
+                        return jsonify({
+                            'user_message': response_data["vraag"],
+                            'system_message': response_data,
+                            'thread_id': thread_id
+                        })
 
-                    openai.beta.threads.messages.create(
-                        thread_id=thread_id,
-                        role="user",
-                        content=csv_data  # FIX: Stuur de CSV rechtstreeks
-                    )
-
-                    run = openai.beta.threads.runs.create(
-                        thread_id=thread_id,
-                        assistant_id=ASSISTANT_ID
-                    )
-
-                    while True:
-                        run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-                        if run_status.status == "completed":
-                            messages = openai.beta.threads.messages.list(thread_id=thread_id)
-                            first_real_message = messages.data[0].content[0].text.value
-                            return jsonify({'reply': first_real_message, 'thread_id': thread_id})
-
-                return jsonify({'reply': messages.data[0].content[0].text.value, 'thread_id': thread_id})
+                except json.JSONDecodeError:
+                    return jsonify({'user_message': first_real_message, 'thread_id': thread_id})
 
     except Exception as e:
-        print(f"ERROR in /start: {e}")
         return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
 
 @app.route('/chat', methods=['POST'])
@@ -90,13 +76,23 @@ def chat():
             run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             if run_status.status == "completed":
                 messages = openai.beta.threads.messages.list(thread_id=thread_id)
-                last_message = messages.data[0].content[0].text.value
-                return jsonify({'reply': last_message})
-    
+                last_message = messages.data[0].content[0].text.value.strip()
+
+                try:
+                    response_data = json.loads(last_message)
+
+                    if isinstance(response_data, dict) and "vraag" in response_data:
+                        return jsonify({
+                            'user_message': response_data["vraag"],
+                            'system_message': response_data
+                        })
+
+                except json.JSONDecodeError:
+                    return jsonify({'user_message': last_message})
+
     except Exception as e:
-        print(f"ERROR in /chat: {e}")
         return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))  # Zorg dat Vercel de juiste poort gebruikt
+    port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)

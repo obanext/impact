@@ -5,7 +5,6 @@ const restartBtn = document.createElement("button");
 
 let threadId = null;
 
-// Voeg een herstart-knop toe
 restartBtn.id = "restart-btn";
 restartBtn.textContent = "Herstart";
 restartBtn.onclick = () => location.reload();
@@ -19,7 +18,6 @@ function appendMessage(role, text) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Fix: showTypingIndicator hersteld
 function showTypingIndicator() {
     const typingIndicator = document.createElement('div');
     typingIndicator.classList.add('typing-indicator');
@@ -39,9 +37,11 @@ async function startInterview() {
         const data = await response.json();
         
         if (data.thread_id) {
-            threadId = data.thread_id;  // Zorg dat threadId correct wordt opgeslagen
+            threadId = data.thread_id;
             typingIndicator.remove();
-            handleQuestion(data.reply);
+
+            if (data.user_message) appendMessage('assistant', data.user_message);
+            if (data.system_message) displayQuestionOptions(data.system_message);
         } else {
             throw new Error("Geen thread_id ontvangen");
         }
@@ -76,7 +76,9 @@ async function sendMessage() {
 
         const data = await response.json();
         typingIndicator.remove();
-        handleQuestion(data.reply);
+
+        if (data.user_message) appendMessage('assistant', data.user_message);
+        if (data.system_message) displayQuestionOptions(data.system_message);
     } catch (error) {
         typingIndicator.remove();
         appendMessage('assistant', 'Er is een fout opgetreden.');
@@ -86,76 +88,44 @@ async function sendMessage() {
     }
 }
 
-function handleQuestion(data) {
+function displayQuestionOptions(questionData) {
     try {
-        let questionData;
+        if (!questionData || !questionData.vraag) return;
 
-        // Controleer of de response een JSON-object of een string is
-        if (typeof data === "string") {
-            try {
-                questionData = JSON.parse(data);
-            } catch (e) {
-                questionData = null;
-            }
-        } else {
-            questionData = data;
-        }
+        const optionsContainer = document.createElement("div");
+        optionsContainer.classList.add("options-container");
 
-        // Als het GEEN JSON is of geen geldige vraag bevat, toon het als platte tekst
-        if (!questionData || !questionData.vraag) {
-            appendMessage('assistant', data);
-            return;
-        }
-
-        // Toon alleen de vraagtekst in de chat
-        appendMessage('assistant', questionData.vraag);
-
-        let inputElement;
-        if (questionData.soort === "MEERKEUZE") {
-            inputElement = document.createElement("div");
+        if (questionData.soort === "1KEUZE") {
             questionData.opties.forEach(option => {
-                let checkbox = document.createElement("input");
-                checkbox.type = "checkbox";
-                checkbox.value = option;
-                checkbox.id = option;
-
-                let label = document.createElement("label");
-                label.htmlFor = option;
-                label.textContent = option;
-
-                inputElement.appendChild(checkbox);
-                inputElement.appendChild(label);
-                inputElement.appendChild(document.createElement("br"));
-            });
-        } else if (["1KEUZE", "JA/NEE"].includes(questionData.soort)) {
-            inputElement = document.createElement("div");
-            questionData.opties.forEach(option => {
-                let radio = document.createElement("input");
-                radio.type = "radio";
-                radio.name = "choice";
-                radio.value = option;
-                radio.id = option;
-
-                let label = document.createElement("label");
-                label.htmlFor = option;
-                label.textContent = option;
-
-                inputElement.appendChild(radio);
-                inputElement.appendChild(label);
-                inputElement.appendChild(document.createElement("br"));
+                const button = document.createElement("button");
+                button.textContent = option;
+                button.onclick = () => sendMessage(option);
+                optionsContainer.appendChild(button);
             });
         } else if (questionData.soort === "5SCHAAL") {
-            inputElement = document.createElement("input");
-            inputElement.type = "range";
-            inputElement.min = 1;
-            inputElement.max = 5;
-            inputElement.value = 3;
+            const slider = document.createElement("input");
+            slider.type = "range";
+            slider.min = 1;
+            slider.max = 5;
+            slider.value = 3;
+            optionsContainer.appendChild(slider);
+            
+            const submitButton = document.createElement("button");
+            submitButton.textContent = "Verstuur";
+            submitButton.onclick = () => sendMessage(slider.value);
+            optionsContainer.appendChild(submitButton);
         } else {
-            inputElement = document.createElement("input");
-            inputElement.type = "text";
+            const textInput = document.createElement("input");
+            textInput.type = "text";
+            optionsContainer.appendChild(textInput);
+
+            const submitButton = document.createElement("button");
+            submitButton.textContent = "Verstuur";
+            submitButton.onclick = () => sendMessage(textInput.value);
+            optionsContainer.appendChild(submitButton);
         }
 
-        document.getElementById("input-area").appendChild(inputElement);
+        chatBox.appendChild(optionsContainer);
     } catch (e) {
         appendMessage('assistant', 'Er is een fout opgetreden bij het verwerken van de vraag.');
     }
