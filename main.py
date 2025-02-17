@@ -29,7 +29,7 @@ def start():
             content="START"
         )
 
-        # Stap 2: Lees de CSV in en stuur deze direct naar OpenAI
+        # Stap 2: Controleer en laad de CSV
         if os.path.exists(CSV_PATH):
             with open(CSV_PATH, "r", encoding="utf-8") as file:
                 csv_data = file.read()
@@ -37,7 +37,7 @@ def start():
             openai.beta.threads.messages.create(
                 thread_id=thread_id,
                 role="user",
-                content=csv_data
+                content="Hier is de dataset in CSV-formaat. Gebruik deze om het interview te structureren:\n\n" + csv_data
             )
         else:
             return jsonify({'reply': 'Fout: CSV-bestand niet gevonden'}), 500
