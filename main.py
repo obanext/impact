@@ -10,6 +10,7 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 ASSISTANT_ID = os.getenv("ASSISTANT_ID")
+CSV_PATH = "contextvragen.csv"  # Zorg dat dit bestand in de root staat
 
 @app.route('/')
 def index():
@@ -21,12 +22,27 @@ def start():
         thread = openai.beta.threads.create()
         thread_id = thread.id
 
+        # Stap 1: Stuur "START" naar de assistent
         openai.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
             content="START"
         )
 
+        # Stap 2: Lees de CSV in en stuur deze direct naar OpenAI
+        if os.path.exists(CSV_PATH):
+            with open(CSV_PATH, "r", encoding="utf-8") as file:
+                csv_data = file.read()
+
+            openai.beta.threads.messages.create(
+                thread_id=thread_id,
+                role="user",
+                content=csv_data
+            )
+        else:
+            return jsonify({'reply': 'Fout: CSV-bestand niet gevonden'}), 500
+
+        # Stap 3: Start een nieuwe OpenAI-run
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=ASSISTANT_ID
