@@ -21,7 +21,7 @@ def index():
 @app.route('/start', methods=['POST'])
 def start():
     try:
-        # Stap 1: Maak een nieuwe thread
+        # Stap 1: Maak een nieuwe thread aan
         thread = openai.beta.threads.create()
         thread_id = thread.id
 
@@ -63,13 +63,16 @@ def start():
                             user_message += "\n".join(response_data["opties"]) + "\n\nGraag je keuze aangeven."
 
                         return jsonify({
-                            'user_message': user_message,
+                            'user_message': "Hoi! We willen je wat vragen stellen om de OBA beter voor je te maken. Het duurt ongeveer twee minuten en je krijgt een plaatje of een wens, bedankt alvast! De vragen worden nu geladen.\n\n" + user_message,
                             'system_message': response_data,
                             'thread_id': thread_id
                         })
 
                 except json.JSONDecodeError:
-                    return jsonify({'user_message': first_real_message, 'thread_id': thread_id})
+                    return jsonify({
+                        'user_message': "Hoi! We willen je wat vragen stellen om de OBA beter voor je te maken. Het duurt ongeveer twee minuten en je krijgt een plaatje of een wens, bedankt alvast! De vragen worden nu geladen.\n\n" + first_real_message,
+                        'thread_id': thread_id
+                    })
 
     except Exception as e:
         return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
