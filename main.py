@@ -42,8 +42,12 @@ def start():
                     response_data = json.loads(first_real_message)
 
                     if isinstance(response_data, dict) and "vraag" in response_data:
+                        user_message = f"{response_data['vraag']}\n\nHier zijn de opties waaruit je kunt kiezen:\n"
+                        if "opties" in response_data:
+                            user_message += "\n".join(response_data["opties"]) + "\n\nGraag je keuze aangeven."
+
                         return jsonify({
-                            'user_message': response_data["vraag"],
+                            'user_message': user_message,
                             'system_message': response_data,
                             'thread_id': thread_id
                         })
@@ -82,8 +86,12 @@ def chat():
                     response_data = json.loads(last_message)
 
                     if isinstance(response_data, dict) and "vraag" in response_data:
+                        user_message = f"{response_data['vraag']}\n\nHier zijn de opties waaruit je kunt kiezen:\n"
+                        if "opties" in response_data:
+                            user_message += "\n".join(response_data["opties"]) + "\n\nGraag je keuze aangeven."
+
                         return jsonify({
-                            'user_message': response_data["vraag"],
+                            'user_message': user_message,
                             'system_message': response_data
                         })
 
