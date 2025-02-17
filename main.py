@@ -11,6 +11,9 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 openai.api_key = os.getenv("OPENAI_API_KEY")
 ASSISTANT_ID = os.getenv("ASSISTANT_ID")
 
+# Dictionary om bij te houden of een thread al vragen heeft geladen
+active_threads = {}
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -21,10 +24,17 @@ def start():
         thread = openai.beta.threads.create()
         thread_id = thread.id
 
+        active_threads[thread_id] = {"has_questions": False}
+
+        # Direct de vragenlijst meesturen
+        csv_path = "contextvragen.csv"
+        with open(csv_path, "r", encoding="utf-8") as file:
+            csv_data = file.read()
+
         openai.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
-            content="START"
+            content=csv_data
         )
 
         run = openai.beta.threads.runs.create(
@@ -37,6 +47,8 @@ def start():
             if run_status.status == "completed":
                 messages = openai.beta.threads.messages.list(thread_id=thread_id)
                 first_real_message = messages.data[0].content[0].text.value.strip()
+
+                active_threads[thread_id]["has_questions"] = True  # Markeer als geladen
 
                 try:
                     response_data = json.loads(first_real_message)
@@ -64,6 +76,10 @@ def chat():
         data = request.get_json()
         thread_id = data.get('thread_id')
         user_message = data.get('message')
+
+        # Zorg dat vragen zijn geladen
+        if thread_id not in active_threads or not active_threads[thread_id]["has_questions"]:
+            return jsonify({'reply': 'Er is een fout opgetreden: vragenlijst niet geladen.'}), 400
 
         openai.beta.threads.messages.create(
             thread_id=thread_id,
