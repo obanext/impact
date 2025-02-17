@@ -10,7 +10,7 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 ASSISTANT_ID = os.getenv("ASSISTANT_ID")
-CSV_PATH = "contextvragen.csv"
+CSV_PATH = "contextvragen.csv"  # Zorg dat dit bestand in de root staat
 
 @app.route('/')
 def index():
@@ -19,17 +19,17 @@ def index():
 @app.route('/start', methods=['POST'])
 def start():
     try:
-        # Start een nieuw gesprek
         thread = openai.beta.threads.create()
         thread_id = thread.id
 
+        # Stap 1: Stuur "START" naar de assistent
         openai.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
             content="START"
         )
 
-        # Laad de CSV en stuur deze naar de assistent
+        # Stap 2: Controleer en laad de CSV
         if os.path.exists(CSV_PATH):
             with open(CSV_PATH, "r", encoding="utf-8") as file:
                 csv_data = file.read()
@@ -37,13 +37,12 @@ def start():
             openai.beta.threads.messages.create(
                 thread_id=thread_id,
                 role="user",
-                content=f"""Hier is de dataset in CSV-formaat. Gebruik deze om het interview te structureren.
-                {csv_data}"""
+                content="Hier is de dataset in CSV-formaat. Gebruik deze om het interview te structureren:\n\n" + csv_data
             )
         else:
-            return jsonify({'error': 'CSV-bestand niet gevonden'}), 500
+            return jsonify({'reply': 'Fout: CSV-bestand niet gevonden'}), 500
 
-        # Start de OpenAI-run
+        # Stap 3: Start een nieuwe OpenAI-run
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=ASSISTANT_ID
@@ -53,20 +52,27 @@ def start():
             run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             if run_status.status == "completed":
                 messages = openai.beta.threads.messages.list(thread_id=thread_id)
-                response_text = messages.data[0].content[0].text.value.strip()
+                first_real_message = messages.data[0].content[0].text.value.strip()
 
                 try:
-                    response_data = json.loads(response_text)
-                    return jsonify({
-                        'user_message': response_data["vraag"],
-                        'system_message': response_data,
-                        'thread_id': thread_id
-                    })
+                    response_data = json.loads(first_real_message)
+
+                    if isinstance(response_data, dict) and "vraag" in response_data:
+                        user_message = f"{response_data['vraag']}\n\nHier zijn de opties waaruit je kunt kiezen:\n"
+                        if "opties" in response_data:
+                            user_message += "\n".join(response_data["opties"]) + "\n\nGraag je keuze aangeven."
+
+                        return jsonify({
+                            'user_message': user_message,
+                            'system_message': response_data,
+                            'thread_id': thread_id
+                        })
+
                 except json.JSONDecodeError:
-                    return jsonify({'error': 'Ongeldige JSON van OpenAI', 'raw_response': response_text}), 500
+                    return jsonify({'user_message': first_real_message, 'thread_id': thread_id})
 
     except Exception as e:
-        return jsonify({'error': str(e), 'message': 'Er is een fout opgetreden'}), 500
+        return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -90,19 +96,26 @@ def chat():
             run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             if run_status.status == "completed":
                 messages = openai.beta.threads.messages.list(thread_id=thread_id)
-                response_text = messages.data[0].content[0].text.value.strip()
+                last_message = messages.data[0].content[0].text.value.strip()
 
                 try:
-                    response_data = json.loads(response_text)
-                    return jsonify({
-                        'user_message': response_data["vraag"],
-                        'system_message': response_data
-                    })
+                    response_data = json.loads(last_message)
+
+                    if isinstance(response_data, dict) and "vraag" in response_data:
+                        user_message = f"{response_data['vraag']}\n\nHier zijn de opties waaruit je kunt kiezen:\n"
+                        if "opties" in response_data:
+                            user_message += "\n".join(response_data["opties"]) + "\n\nGraag je keuze aangeven."
+
+                        return jsonify({
+                            'user_message': user_message,
+                            'system_message': response_data
+                        })
+
                 except json.JSONDecodeError:
-                    return jsonify({'error': 'Ongeldige JSON van OpenAI', 'raw_response': response_text}), 500
+                    return jsonify({'user_message': last_message})
 
     except Exception as e:
-        return jsonify({'error': str(e), 'message': 'Er is een fout opgetreden'}), 500
+        return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8080))
