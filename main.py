@@ -55,8 +55,8 @@ def start():
                     response_data = json.loads(first_real_message)
                     if isinstance(response_data, dict) and "vraag" in response_data:
                         return jsonify({
-                            'user_message': response_data["vraag"],
-                            'system_message': response_data,
+                            'user_message': response_data["vraag"],  # Alleen de vraag tonen in chat
+                            'system_message': response_data,  # JSON voor UI-verwerking
                             'thread_id': thread_id
                         })
                 except json.JSONDecodeError:
@@ -93,8 +93,8 @@ def chat():
                     response_data = json.loads(last_message)
                     if isinstance(response_data, dict) and "vraag" in response_data:
                         return jsonify({
-                            'user_message': response_data["vraag"],
-                            'system_message': response_data
+                            'user_message': response_data["vraag"],  # Alleen de vraag tonen in chat
+                            'system_message': response_data  # JSON voor UI-verwerking
                         })
                 except json.JSONDecodeError:
                     return jsonify({'user_message': last_message})
