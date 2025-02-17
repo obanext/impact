@@ -25,11 +25,15 @@ async function startInterview() {
         const response = await fetch('/start', { method: 'POST' });
         const data = await response.json();
 
+        if (data.error) {
+            appendMessage('assistant', "Er is een fout opgetreden bij het verwerken van de vraag.");
+            return;
+        }
+
         if (data.thread_id) {
             threadId = data.thread_id;
-
-            if (data.user_message) appendMessage('assistant', data.user_message); 
-            if (data.system_message) handleQuestion(data.system_message); // UI genereren, niet tonen in chat
+            appendMessage('assistant', data.user_message);
+            handleQuestion(data.system_message);
         } else {
             throw new Error("Geen thread_id ontvangen");
         }
@@ -62,7 +66,7 @@ async function sendMessage() {
         const data = await response.json();
         
         if (data.user_message) appendMessage('assistant', data.user_message);
-        if (data.system_message) handleQuestion(data.system_message); // UI genereren, niet tonen in chat
+        if (data.system_message) handleQuestion(data.system_message);
     } catch (error) {
         appendMessage('assistant', 'Er is een fout opgetreden.');
     } finally {
@@ -76,7 +80,7 @@ function handleQuestion(questionData) {
         if (!questionData || !questionData.vraag) return;
 
         let inputArea = document.getElementById("input-area");
-        inputArea.innerHTML = ""; // Oude invoervelden verwijderen
+        inputArea.innerHTML = "";
 
         let inputElement;
         if (questionData.soort === "1KEUZE") {
@@ -96,41 +100,6 @@ function handleQuestion(questionData) {
                 inputElement.appendChild(label);
                 inputElement.appendChild(document.createElement("br"));
             });
-        } else if (questionData.soort === "MEERKEUZE") {
-            inputElement = document.createElement("div");
-            questionData.opties.forEach(option => {
-                let checkbox = document.createElement("input");
-                checkbox.type = "checkbox";
-                checkbox.value = option;
-                checkbox.id = option;
-
-                let label = document.createElement("label");
-                label.htmlFor = option;
-                label.textContent = option;
-
-                inputElement.appendChild(checkbox);
-                inputElement.appendChild(label);
-                inputElement.appendChild(document.createElement("br"));
-            });
-        } else if (questionData.soort === "5SCHAAL") {
-            inputElement = document.createElement("div");
-            let slider = document.createElement("input");
-            slider.type = "range";
-            slider.min = 1;
-            slider.max = 5;
-            slider.value = 3;
-            slider.id = "scale-slider";
-
-            let valueDisplay = document.createElement("span");
-            valueDisplay.id = "scale-value";
-            valueDisplay.textContent = "3"; // Default value
-
-            slider.addEventListener("input", function() {
-                valueDisplay.textContent = slider.value;
-            });
-
-            inputElement.appendChild(slider);
-            inputElement.appendChild(valueDisplay);
         } else {
             inputElement = document.createElement("input");
             inputElement.type = "text";
@@ -149,3 +118,4 @@ userInput.addEventListener('keypress', function (e) {
 });
 
 window.onload = startInterview;
+

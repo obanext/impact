@@ -35,7 +35,8 @@ def start():
             openai.beta.threads.messages.create(
                 thread_id=thread_id,
                 role="user",
-                content="Hier is de dataset in CSV-formaat. Gebruik deze om het interview te structureren:\n\n" + csv_data
+                content=f"""Hier is de dataset in CSV-formaat. Gebruik deze om het interview te structureren. 
+                {csv_data}"""
             )
         else:
             return jsonify({'reply': 'Fout: CSV-bestand niet gevonden'}), 500
@@ -49,18 +50,17 @@ def start():
             run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             if run_status.status == "completed":
                 messages = openai.beta.threads.messages.list(thread_id=thread_id)
-                first_real_message = messages.data[0].content[0].text.value.strip()
+                response_text = messages.data[0].content[0].text.value.strip()
 
                 try:
-                    response_data = json.loads(first_real_message)
-                    if isinstance(response_data, dict) and "vraag" in response_data:
-                        return jsonify({
-                            'user_message': response_data["vraag"],  # Alleen de vraag tonen in chat
-                            'system_message': response_data,  # JSON voor UI-verwerking
-                            'thread_id': thread_id
-                        })
+                    response_data = json.loads(response_text)
+                    return jsonify({
+                        'user_message': response_data["vraag"],
+                        'system_message': response_data,
+                        'thread_id': thread_id
+                    })
                 except json.JSONDecodeError:
-                    return jsonify({'user_message': first_real_message, 'thread_id': thread_id})
+                    return jsonify({'error': 'Fout: OpenAI heeft geen geldige JSON teruggegeven', 'raw_response': response_text})
 
     except Exception as e:
         return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
@@ -87,17 +87,16 @@ def chat():
             run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             if run_status.status == "completed":
                 messages = openai.beta.threads.messages.list(thread_id=thread_id)
-                last_message = messages.data[0].content[0].text.value.strip()
+                response_text = messages.data[0].content[0].text.value.strip()
 
                 try:
-                    response_data = json.loads(last_message)
-                    if isinstance(response_data, dict) and "vraag" in response_data:
-                        return jsonify({
-                            'user_message': response_data["vraag"],  # Alleen de vraag tonen in chat
-                            'system_message': response_data  # JSON voor UI-verwerking
-                        })
+                    response_data = json.loads(response_text)
+                    return jsonify({
+                        'user_message': response_data["vraag"],
+                        'system_message': response_data
+                    })
                 except json.JSONDecodeError:
-                    return jsonify({'user_message': last_message})
+                    return jsonify({'error': 'Fout: OpenAI heeft geen geldige JSON teruggegeven', 'raw_response': response_text})
 
     except Exception as e:
         return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
