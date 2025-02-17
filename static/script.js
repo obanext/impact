@@ -122,8 +122,8 @@ function handleQuestion(questionData) {
     }
 }
 
-sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keypress', function (e) {
     if (e.key === 'Enter') sendMessage();
+});
 
 window.onload = startInterview;
