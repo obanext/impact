@@ -58,19 +58,17 @@ def start():
                     response_data = json.loads(first_real_message)
 
                     if isinstance(response_data, dict) and "vraag" in response_data:
-                        user_message = f"{response_data['vraag']}\n\nHier zijn de opties waaruit je kunt kiezen:\n"
-                        if "opties" in response_data:
-                            user_message += "\n".join(response_data["opties"]) + "\n\nGraag je keuze aangeven."
+                        vraag_tekst = response_data["vraag"]  # Alleen de vraagtekst voor de gebruiker
 
                         return jsonify({
-                            'user_message': "Hoi! We willen je wat vragen stellen om de OBA beter voor je te maken. Het duurt ongeveer twee minuten en je krijgt een plaatje of een wens, bedankt alvast! De vragen worden nu geladen.\n\n" + user_message,
-                            'system_message': response_data,
+                            'user_message': vraag_tekst,  # Alleen tekst naar de gebruiker
+                            'system_message': response_data,  # JSON-object voor frontend
                             'thread_id': thread_id
                         })
 
                 except json.JSONDecodeError:
                     return jsonify({
-                        'user_message': "Hoi! We willen je wat vragen stellen om de OBA beter voor je te maken. Het duurt ongeveer twee minuten en je krijgt een plaatje of een wens, bedankt alvast! De vragen worden nu geladen.\n\n" + first_real_message,
+                        'user_message': first_real_message,  # Fallback: Stuur de ruwe tekst als er geen JSON is
                         'thread_id': thread_id
                     })
 
@@ -109,12 +107,10 @@ def chat():
                     response_data = json.loads(last_message)
 
                     if isinstance(response_data, dict) and "vraag" in response_data:
-                        user_message = f"{response_data['vraag']}\n\nHier zijn de opties waaruit je kunt kiezen:\n"
-                        if "opties" in response_data:
-                            user_message += "\n".join(response_data["opties"]) + "\n\nGraag je keuze aangeven."
+                        vraag_tekst = response_data["vraag"]
 
                         return jsonify({
-                            'user_message': user_message,
+                            'user_message': vraag_tekst,
                             'system_message': response_data
                         })
 
