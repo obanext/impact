@@ -19,13 +19,14 @@ function appendMessage(role, text) {
 }
 
 async function startInterview() {
-    appendMessage('assistant', "Hoi! We willen je wat vragen stellen om de OBA beter voor je te maken. Het duurt ongeveer twee minuten en je krijgt een plaatje of een wens, bedankt alvast! De vragen worden nu geladen.");
+    appendMessage('assistant', "Hoi! We laden de vragen, een moment...");
 
     try {
         const response = await fetch('/start', { method: 'POST' });
         const data = await response.json();
 
         if (data.error) {
+            console.error("FOUT:", data.error); // Alleen in browserconsole tonen
             appendMessage('assistant', "Er is een fout opgetreden bij het verwerken van de vraag.");
             return;
         }
@@ -38,6 +39,7 @@ async function startInterview() {
             throw new Error("Geen thread_id ontvangen");
         }
     } catch (error) {
+        console.error("FOUT: Netwerk- of serverprobleem", error);
         appendMessage('assistant', 'Fout bij starten van interview.');
     }
 }
@@ -64,10 +66,17 @@ async function sendMessage() {
         });
 
         const data = await response.json();
-        
+
+        if (data.error) {
+            console.error("FOUT:", data.error); // Alleen in browserconsole tonen
+            appendMessage('assistant', "Er is een fout opgetreden bij het verwerken van je antwoord.");
+            return;
+        }
+
         if (data.user_message) appendMessage('assistant', data.user_message);
         if (data.system_message) handleQuestion(data.system_message);
     } catch (error) {
+        console.error("FOUT: Netwerk- of serverprobleem", error);
         appendMessage('assistant', 'Er is een fout opgetreden.');
     } finally {
         userInput.disabled = false;
@@ -77,34 +86,17 @@ async function sendMessage() {
 
 function handleQuestion(questionData) {
     try {
-        if (!questionData || !questionData.vraag) return;
+        if (!questionData || typeof questionData !== "object" || !questionData.vraag) {
+            console.error("FOUT IN JSON DATA:", questionData);
+            appendMessage('assistant', "Er is een fout opgetreden bij het verwerken van de vraag.");
+            return;
+        }
 
         let inputArea = document.getElementById("input-area");
         inputArea.innerHTML = "";
 
-        let inputElement;
-        if (questionData.soort === "1KEUZE") {
-            inputElement = document.createElement("div");
-            questionData.opties.forEach(option => {
-                let radio = document.createElement("input");
-                radio.type = "radio";
-                radio.name = "choice";
-                radio.value = option;
-                radio.id = option;
-
-                let label = document.createElement("label");
-                label.htmlFor = option;
-                label.textContent = option;
-
-                inputElement.appendChild(radio);
-                inputElement.appendChild(label);
-                inputElement.appendChild(document.createElement("br"));
-            });
-        } else {
-            inputElement = document.createElement("input");
-            inputElement.type = "text";
-        }
-
+        let inputElement = document.createElement("input");
+        inputElement.type = "text";
         inputArea.appendChild(inputElement);
 
     } catch (e) {
@@ -118,4 +110,3 @@ userInput.addEventListener('keypress', function (e) {
 });
 
 window.onload = startInterview;
-
