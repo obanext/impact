@@ -14,6 +14,16 @@ if (!document.getElementById('restart-btn')) {
     document.getElementById('input-area').appendChild(restartBtn);
 }
 
+// ✅ Herstel: Voeg showTypingIndicator() toe
+function showTypingIndicator() {
+    const typingIndicator = document.createElement('div');
+    typingIndicator.classList.add('typing-indicator');
+    typingIndicator.innerHTML = "<span></span><span></span><span></span>";
+    chatBox.appendChild(typingIndicator);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return typingIndicator;
+}
+
 function appendMessage(role, text) {
     const msgDiv = document.createElement('div');
     msgDiv.classList.add('message', role);
@@ -46,11 +56,48 @@ async function startInterview() {
     }
 }
 
+async function sendMessage() {
+    if (!threadId) {
+        appendMessage('assistant', 'Fout: Geen actieve sessie. Vernieuw de pagina.');
+        return;
+    }
+
+    const text = userInput.value.trim();
+    if (text === '') return;
+    
+    appendMessage('user', text);
+    userInput.value = '';
+    userInput.disabled = true;
+    sendBtn.disabled = true;
+
+    const typingIndicator = showTypingIndicator();
+
+    try {
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thread_id: threadId, message: text })
+        });
+
+        const data = await response.json();
+        typingIndicator.remove();
+
+        if (data.user_message) appendMessage('assistant', data.user_message);
+        if (data.system_message) handleQuestion(data.system_message);
+    } catch (error) {
+        typingIndicator.remove();
+        appendMessage('assistant', 'Er is een fout opgetreden.');
+    } finally {
+        userInput.disabled = false;
+        sendBtn.disabled = false;
+    }
+}
+
 function handleQuestion(questionData) {
     try {
         if (!questionData || !questionData.vraag) return;
 
-        document.getElementById("input-area").innerHTML = "";
+        document.getElementById("input-area").innerHTML = ""; 
 
         let inputElement;
         if (questionData.soort === "1KEUZE" || questionData.soort === "JA/NEE") {
@@ -102,3 +149,7 @@ function handleQuestion(questionData) {
         appendMessage('assistant', 'Er is een fout opgetreden bij het verwerken van de vraag.');
     }
 }
+
+userInput.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') sendMessage();
+});
