@@ -1,4 +1,3 @@
-window.onload = startInterview;
 const chatBox = document.getElementById('chat-box');
 const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
@@ -6,11 +5,18 @@ const restartBtn = document.createElement("button");
 
 let threadId = null;
 
-if (!document.getElementById('restart-btn')) {
-    restartBtn.id = "restart-btn";
-    restartBtn.textContent = "Herstart";
-    restartBtn.onclick = () => location.reload();
-    document.getElementById('input-area').appendChild(restartBtn);
+// Voeg een herstart-knop toe
+restartBtn.id = "restart-btn";
+restartBtn.textContent = "Herstart";
+restartBtn.onclick = () => location.reload();
+document.getElementById('input-area').appendChild(restartBtn);
+
+function appendMessage(role, text) {
+    const msgDiv = document.createElement('div');
+    msgDiv.classList.add('message', role);
+    msgDiv.textContent = text;
+    chatBox.appendChild(msgDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 function showTypingIndicator() {
@@ -20,14 +26,6 @@ function showTypingIndicator() {
     chatBox.appendChild(typingIndicator);
     chatBox.scrollTop = chatBox.scrollHeight;
     return typingIndicator;
-}
-
-function appendMessage(role, text) {
-    const msgDiv = document.createElement('div');
-    msgDiv.classList.add('message', role);
-    msgDiv.textContent = text;
-    chatBox.appendChild(msgDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 async function startInterview() {
@@ -95,10 +93,8 @@ function handleQuestion(questionData) {
     try {
         if (!questionData || !questionData.vraag) return;
 
-        document.getElementById("input-area").innerHTML = "";
-
         let inputElement;
-        if (questionData.soort === "1KEUZE" || questionData.soort === "JA/NEE") {
+        if (questionData.soort === "1KEUZE") {
             inputElement = document.createElement("div");
             questionData.opties.forEach(option => {
                 let radio = document.createElement("input");
@@ -115,28 +111,6 @@ function handleQuestion(questionData) {
                 inputElement.appendChild(label);
                 inputElement.appendChild(document.createElement("br"));
             });
-        } else if (questionData.soort === "MEERKEUZE") {
-            inputElement = document.createElement("div");
-            questionData.opties.forEach(option => {
-                let checkbox = document.createElement("input");
-                checkbox.type = "checkbox";
-                checkbox.value = option;
-                checkbox.id = option;
-
-                let label = document.createElement("label");
-                label.htmlFor = option;
-                label.textContent = option;
-
-                inputElement.appendChild(checkbox);
-                inputElement.appendChild(label);
-                inputElement.appendChild(document.createElement("br"));
-            });
-        } else if (questionData.soort === "5SCHAAL") {
-            inputElement = document.createElement("input");
-            inputElement.type = "range";
-            inputElement.min = 1;
-            inputElement.max = 5;
-            inputElement.value = 3;
         } else {
             inputElement = document.createElement("input");
             inputElement.type = "text";
@@ -148,6 +122,8 @@ function handleQuestion(questionData) {
     }
 }
 
+sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keypress', function (e) {
     if (e.key === 'Enter') sendMessage();
-});
+
+window.onload = startInterview;

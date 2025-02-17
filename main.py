@@ -11,8 +11,6 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 openai.api_key = os.getenv("OPENAI_API_KEY")
 ASSISTANT_ID = os.getenv("ASSISTANT_ID")
 
-active_threads = {}
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -22,16 +20,11 @@ def start():
     try:
         thread = openai.beta.threads.create()
         thread_id = thread.id
-        active_threads[thread_id] = {"has_questions": False}
-
-        csv_path = "contextvragen.csv"
-        with open(csv_path, "r", encoding="utf-8") as file:
-            csv_data = file.read()
 
         openai.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
-            content=csv_data
+            content="START"
         )
 
         run = openai.beta.threads.runs.create(
@@ -45,23 +38,22 @@ def start():
                 messages = openai.beta.threads.messages.list(thread_id=thread_id)
                 first_real_message = messages.data[0].content[0].text.value.strip()
 
-                active_threads[thread_id]["has_questions"] = True
-
                 try:
                     response_data = json.loads(first_real_message)
 
                     if isinstance(response_data, dict) and "vraag" in response_data:
+                        user_message = f"{response_data['vraag']}\n\nHier zijn de opties waaruit je kunt kiezen:\n"
+                        if "opties" in response_data:
+                            user_message += "\n".join(response_data["opties"]) + "\n\nGraag je keuze aangeven."
+
                         return jsonify({
-                            'user_message': response_data["vraag"],
+                            'user_message': user_message,
                             'system_message': response_data,
                             'thread_id': thread_id
                         })
 
                 except json.JSONDecodeError:
-                    return jsonify({
-                        'user_message': first_real_message,
-                        'thread_id': thread_id
-                    })
+                    return jsonify({'user_message': first_real_message, 'thread_id': thread_id})
 
     except Exception as e:
         return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
@@ -72,9 +64,6 @@ def chat():
         data = request.get_json()
         thread_id = data.get('thread_id')
         user_message = data.get('message')
-
-        if thread_id not in active_threads or not active_threads[thread_id]["has_questions"]:
-            return jsonify({'reply': 'Er is een fout opgetreden: vragenlijst niet geladen.'}), 400
 
         openai.beta.threads.messages.create(
             thread_id=thread_id,
@@ -97,8 +86,12 @@ def chat():
                     response_data = json.loads(last_message)
 
                     if isinstance(response_data, dict) and "vraag" in response_data:
+                        user_message = f"{response_data['vraag']}\n\nHier zijn de opties waaruit je kunt kiezen:\n"
+                        if "opties" in response_data:
+                            user_message += "\n".join(response_data["opties"]) + "\n\nGraag je keuze aangeven."
+
                         return jsonify({
-                            'user_message': response_data["vraag"],
+                            'user_message': user_message,
                             'system_message': response_data
                         })
 
