@@ -6,7 +6,6 @@ const restartBtn = document.createElement("button");
 
 let threadId = null;
 
-// Voeg een herstart-knop toe, maar alleen als deze nog niet bestaat
 if (!document.getElementById('restart-btn')) {
     restartBtn.id = "restart-btn";
     restartBtn.textContent = "Herstart";
@@ -14,7 +13,6 @@ if (!document.getElementById('restart-btn')) {
     document.getElementById('input-area').appendChild(restartBtn);
 }
 
-// ✅ Herstel: Voeg showTypingIndicator() toe
 function showTypingIndicator() {
     const typingIndicator = document.createElement('div');
     typingIndicator.classList.add('typing-indicator');
@@ -97,7 +95,7 @@ function handleQuestion(questionData) {
     try {
         if (!questionData || !questionData.vraag) return;
 
-        document.getElementById("input-area").innerHTML = ""; 
+        document.getElementById("input-area").innerHTML = "";
 
         let inputElement;
         if (questionData.soort === "1KEUZE" || questionData.soort === "JA/NEE") {
