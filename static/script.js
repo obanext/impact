@@ -4,6 +4,7 @@ const sendBtn = document.getElementById('send-btn');
 const restartBtn = document.createElement("button");
 let threadId = null;
 let currentQuestion = null;
+let questionCounter = 0;
 
 restartBtn.id = "restart-btn";
 restartBtn.textContent = "Herstart";
@@ -65,31 +66,44 @@ async function sendMessage() {
     userInput.value = '';
 
     if (currentQuestion) {
-        if (currentQuestion.soort === "1KEUZE") {
-            const chosen = document.querySelector('input[name="choice"]:checked');
+        const qSoort = currentQuestion.soort;
+        const qName = "choice_q" + questionCounter;
+
+        if (qSoort === "1KEUZE") {
+            const chosen = document.querySelector(`input[name="${qName}"]:checked`);
             if (chosen) {
                 text = chosen.value;
+            } else if (!text) {
+                appendMessage('assistant', 'Je hebt nog geen keuze gemaakt.');
+                return;
             }
-        } else if (currentQuestion.soort === "MEERKEUZE") {
-            const chosen = document.querySelectorAll('input[name="choice"]:checked');
+        } else if (qSoort === "MEERKEUZE") {
+            const chosen = document.querySelectorAll(`input[name="${qName}"]:checked`);
             if (chosen.length > 0) {
                 const values = Array.from(chosen).map(ch => ch.value);
                 text = values.join(", ");
+            } else if (!text) {
+                appendMessage('assistant', 'Je hebt nog geen keuze(s) geselecteerd.');
+                return;
             }
-        } else if (currentQuestion.soort === "5SCHAAL") {
-            const range = document.getElementById("rangeInput");
-            if (range) {
-                text = range.value;
+        } else if (qSoort === "5SCHAAL") {
+            const slider = document.getElementById(`rangeInput_${questionCounter}`);
+            if (slider) {
+                text = slider.value;
             }
-        } else if (currentQuestion.soort === "OPEN") {
-            const textInput = document.getElementById("openInput");
-            if (textInput) {
-                text = textInput.value.trim();
+            if (!text) {
+                appendMessage('assistant', 'Schuif de balk naar een waarde tussen 1 en 5.');
+                return;
+            }
+        } else if (qSoort === "OPEN") {
+            if (!text) {
+                appendMessage('assistant', 'Je hebt geen antwoord ingevuld.');
+                return;
             }
         }
     }
 
-    if (text === '') {
+    if (!text) {
         appendMessage('assistant', 'Je hebt nog geen invoer gegeven.');
         return;
     }
@@ -108,59 +122,71 @@ async function sendMessage() {
         const data = await response.json();
         typingIndicator.remove();
 
-        if (data.assistant_text) appendMessage('assistant', data.assistant_text);
-        if (data.assistant_json) handleQuestion(data.assistant_json);
+        if (data.assistant_text) {
+            appendMessage('assistant', data.assistant_text);
+        }
+        if (data.assistant_json) {
+            handleQuestion(data.assistant_json);
+        } else {
+            currentQuestion = null;
+        }
     } catch (error) {
         typingIndicator.remove();
         appendMessage('assistant', 'Er is een fout opgetreden.');
     } finally {
         userInput.disabled = false;
         sendBtn.disabled = false;
-        currentQuestion = null;
     }
 }
 
 function handleQuestion(questionData) {
     currentQuestion = questionData;
+    questionCounter++;
+
     if (!questionData || !questionData.vraag) return;
+    let html = questionData.vraag + "<br><br>";
+    const qName = "choice_q" + questionCounter;
 
     if (questionData.opties && questionData.opties.length > 0) {
-        let html = "<strong>" + questionData.vraag + "</strong><br><br>";
         if (questionData.soort === "1KEUZE") {
             questionData.opties.forEach(option => {
                 html += `
-                <label style="display:block;margin-bottom:5px;">
-                    <input type="radio" name="choice" value="${option}" />
-                    ${option}
-                </label>
+                  <label style="display:block;margin-bottom:5px;">
+                      <input type="radio" name="${qName}" value="${option}" />
+                      ${option}
+                  </label>
                 `;
             });
             appendHtmlMessage('assistant', html);
         } else if (questionData.soort === "MEERKEUZE") {
             questionData.opties.forEach(option => {
                 html += `
-                <label style="display:block;margin-bottom:5px;">
-                    <input type="checkbox" name="choice" value="${option}" />
-                    ${option}
-                </label>
+                  <label style="display:block;margin-bottom:5px;">
+                      <input type="checkbox" name="${qName}" value="${option}" />
+                      ${option}
+                  </label>
                 `;
             });
             appendHtmlMessage('assistant', html);
         } else if (questionData.soort === "5SCHAAL") {
             html += `
-            <input id="rangeInput" type="range" min="1" max="5" value="3" />
+              <input id="rangeInput_${questionCounter}" type="range" min="1" max="5" step="1" value="3" list="tickmarks_${questionCounter}" />
+              <datalist id="tickmarks_${questionCounter}">
+                <option value="1" label="1"></option>
+                <option value="2"></option>
+                <option value="3" label="3"></option>
+                <option value="4"></option>
+                <option value="5" label="5"></option>
+              </datalist>
             `;
             appendHtmlMessage('assistant', html);
         } else {
-            html += `<input id="openInput" type="text" style="display:block;margin-top:5px;"/>`;
+            // Tekstveld in de chat is niet gewenst bij OPEN, dus user typt in #user-input
             appendHtmlMessage('assistant', html);
         }
     } else {
+        // OPEN vraag zonder opties: user typt in #user-input
         appendMessage('assistant', questionData.vraag);
-        if (questionData.soort === "OPEN") {
-            const inputHtml = `<br><input id="openInput" type="text" style="display:block;margin-top:5px;"/>`;
-            appendHtmlMessage('assistant', inputHtml);
-        }
     }
 }
 
