@@ -1,4 +1,4 @@
-﻿titel;onderdeel;type;body;soort;opties;validatie
+﻿titel;onderdeel;type;vraag;soort;opties;validatie
 Ervaring;Over je ervaring;vraag;Wat was in jouw ervaring de belangrijkste gebeurtenis?;1KEUZE;"Studeren / Leren;Werken;Vrijwilligerswerk;Activiteit of evenement bezoeken;Spreekuur bezoeken;Iets anders, namelijk:";nee
 Ervaring;Over de buurt;vraag;Over welke buurt gaat je ervaring vooral?;OPEN;;nee
 Ervaring;Over de buurt;vraag;Is dat dezelfde buurt als waar je de activiteit of OBA bezocht?;JA/NEE;;nee
