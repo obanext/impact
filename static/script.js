@@ -14,6 +14,13 @@ function appendMessage(role, text) {
     chatBox.appendChild(msgDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
+function appendHtmlMessage(role, html) {
+    const msgDiv = document.createElement('div');
+    msgDiv.classList.add('message', role);
+    msgDiv.innerHTML = html;
+    chatBox.appendChild(msgDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
 function showTypingIndicator() {
     const typingIndicator = document.createElement('div');
     typingIndicator.classList.add('typing-indicator');
@@ -73,48 +80,28 @@ async function sendMessage() {
 }
 function handleQuestion(questionData) {
     if (!questionData || !questionData.vraag) return;
-    appendMessage('assistant', questionData.vraag);
-    let inputElement;
-    if (questionData.soort === "1KEUZE") {
-        inputElement = document.createElement("div");
-        questionData.opties.forEach(option => {
-            let radio = document.createElement("input");
-            radio.type = "radio";
-            radio.name = "choice";
-            radio.value = option;
-            radio.id = option;
-            let label = document.createElement("label");
-            label.htmlFor = option;
-            label.textContent = option;
-            inputElement.appendChild(radio);
-            inputElement.appendChild(label);
-            inputElement.appendChild(document.createElement("br"));
-        });
-    } else if (questionData.soort === "MEERKEUZE") {
-        inputElement = document.createElement("div");
-        questionData.opties.forEach(option => {
-            let checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.value = option;
-            checkbox.id = option;
-            let label = document.createElement("label");
-            label.htmlFor = option;
-            label.textContent = option;
-            inputElement.appendChild(checkbox);
-            inputElement.appendChild(label);
-            inputElement.appendChild(document.createElement("br"));
-        });
-    } else if (questionData.soort === "5SCHAAL") {
-        inputElement = document.createElement("input");
-        inputElement.type = "range";
-        inputElement.min = 1;
-        inputElement.max = 5;
-        inputElement.value = 3;
+    if (questionData.opties && questionData.opties.length > 0) {
+        let html = "<strong>" + questionData.vraag + "</strong><br>";
+        if (questionData.soort === "1KEUZE") {
+            questionData.opties.forEach(option => {
+                html += "<label style='margin-right:10px;'><input type='radio' name='choice'/> " + option + "</label>";
+            });
+            appendHtmlMessage('assistant', html);
+        } else if (questionData.soort === "MEERKEUZE") {
+            questionData.opties.forEach(option => {
+                html += "<label style='margin-right:10px;'><input type='checkbox'/> " + option + "</label>";
+            });
+            appendHtmlMessage('assistant', html);
+        } else if (questionData.soort === "5SCHAAL") {
+            html += "<input type='range' min='1' max='5' value='3'/>";
+            appendHtmlMessage('assistant', html);
+        } else {
+            html += "<input type='text'/>";
+            appendHtmlMessage('assistant', html);
+        }
     } else {
-        inputElement = document.createElement("input");
-        inputElement.type = "text";
+        appendMessage('assistant', questionData.vraag);
     }
-    document.getElementById("input-area").appendChild(inputElement);
 }
 sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keypress', function (e) {

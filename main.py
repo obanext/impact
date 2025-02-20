@@ -39,12 +39,7 @@ def start():
         logging.info("Ontvangen POST-verzoek voor /start")
         thread = openai.beta.threads.create()
         thread_id = thread.id
-        logging.info(f"Nieuwe thread aangemaakt: {thread_id}")
-        openai.beta.threads.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content="START"
-        )
+        openai.beta.threads.messages.create(thread_id=thread_id, role="user", content="START")
         if os.path.exists(CSV_PATH):
             with open(CSV_PATH, "r", encoding="utf-8") as file:
                 csv_data = file.read()
@@ -55,10 +50,7 @@ def start():
             )
         else:
             return jsonify({'reply': 'Fout: CSV-bestand niet gevonden'}), 500
-        run = openai.beta.threads.runs.create(
-            thread_id=thread_id,
-            assistant_id=ASSISTANT_ID
-        )
+        run = openai.beta.threads.runs.create(thread_id=thread_id, assistant_id=ASSISTANT_ID)
         start_time = time.time()
         while True:
             run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
@@ -91,15 +83,8 @@ def chat():
         user_message = data.get('message')
         if not thread_id:
             return jsonify({'reply': 'Geen actieve sessie. Probeer opnieuw.'}), 400
-        openai.beta.threads.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content=user_message
-        )
-        run = openai.beta.threads.runs.create(
-            thread_id=thread_id,
-            assistant_id=ASSISTANT_ID
-        )
+        openai.beta.threads.messages.create(thread_id=thread_id, role="user", content=user_message)
+        run = openai.beta.threads.runs.create(thread_id=thread_id, assistant_id=ASSISTANT_ID)
         start_time = time.time()
         while True:
             run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
