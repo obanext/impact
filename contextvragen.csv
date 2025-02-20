@@ -1,7 +1,7 @@
 ﻿titel;onderdeel;type;vraag;soort;opties;validatie
 Ervaring;Over je ervaring;vraag;Wat was in jouw ervaring de belangrijkste gebeurtenis?;1KEUZE;"Studeren / Leren;Werken;Vrijwilligerswerk;Activiteit of evenement bezoeken;Spreekuur bezoeken;Iets anders, namelijk:";nee
 Ervaring;Over de buurt;vraag;Over welke buurt gaat je ervaring vooral?;OPEN;;nee
-Ervaring;Over de buurt;vraag;Is dat dezelfde buurt als waar je de activiteit of OBA bezocht?;JA/NEE;;nee
+Ervaring;Over de buurt;vraag;Is dat dezelfde buurt als waar je de activiteit of OBA bezocht?;1KEUZE;"ja;nee";nee
 Ervaring;Over de buurt;vraag;Welke drie woorden komen bij je op als je aan de buurt denkt?;OPEN;;nee
 Ervaring;Over de vestiging;vraag;Welke OBA-plek of vestiging is het meest relevant voor je ervaring?;OPEN;;ja
 Ervaring;Over de vestiging;vraag;Welke drie woorden komen bij je op als je aan jouw OBA-vestiging denkt?;OPEN;;nee
