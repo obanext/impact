@@ -36,7 +36,6 @@ def index():
 @app.route('/start', methods=['POST'])
 def start():
     try:
-        logging.info("Ontvangen POST-verzoek voor /start")
         thread = openai.beta.threads.create()
         thread_id = thread.id
         openai.beta.threads.messages.create(thread_id=thread_id, role="user", content="START")

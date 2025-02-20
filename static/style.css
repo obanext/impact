@@ -4,28 +4,24 @@
     padding: 0;
     font-family: Arial, sans-serif;
 }
-
 body {
-    background-color: #f4f4f4;
+    background-color: #fff;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
 }
-
 #chat-container {
     width: 90%;
     max-width: 600px;
     background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 10px;
+    border: 1px solid #000;
+    border-radius: 5px;
     display: flex;
     flex-direction: column;
     height: 80vh;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
 }
-
 #chat-box {
     flex: 1;
     padding: 10px;
@@ -34,40 +30,31 @@ body {
     flex-direction: column;
     scroll-behavior: smooth;
 }
-
 .message {
     margin-bottom: 10px;
     padding: 10px 15px;
-    border-radius: 20px;
+    border: 1px solid #000;
+    border-radius: 5px;
     max-width: 80%;
     opacity: 0;
-    transform: translateY(10px);
     animation: fadeIn 0.3s forwards;
 }
-
 .user {
-    background-color: #d1e7dd;
+    background-color: #fff;
     align-self: flex-end;
 }
-
 .assistant {
-    background-color: #e2e3e5;
+    background-color: #fff;
     align-self: flex-start;
 }
-
-/* Fade-in animatie voor berichten */
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(10px);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
     }
 }
-
-/* Typing-indicator (3 dots animatie) */
 .typing-indicator {
     display: flex;
     justify-content: flex-start;
@@ -76,69 +63,57 @@ body {
     opacity: 1;
     animation: fadeIn 0.3s forwards;
 }
-
 .typing-indicator span {
     width: 6px;
     height: 6px;
-    background-color: #666;
+    background-color: #000;
     border-radius: 50%;
     margin: 0 2px;
     animation: typing 1.5s infinite ease-in-out;
 }
-
 .typing-indicator span:nth-child(1) { animation-delay: 0s; }
 .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
 .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-
 @keyframes typing {
     0% { transform: translateY(0px); }
     50% { transform: translateY(-5px); }
     100% { transform: translateY(0px); }
 }
-
-/* Input- en verzendknop styling */
 #input-area {
     display: flex;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid #000;
     padding: 10px;
     background-color: #fff;
     transition: all 0.3s ease-in-out;
 }
-
 #user-input {
     flex: 1;
     padding: 10px;
-    border: none;
+    border: 1px solid #000;
+    background-color: #fff;
     font-size: 16px;
     border-radius: 5px;
     transition: all 0.3s ease-in-out;
+    color: #000;
 }
-
-#send-btn, #restart-btn {
+#send-btn,
+#restart-btn {
     padding: 10px 15px;
-    border: none;
-    background-color: #0d6efd;
-    color: #fff;
+    border: 1px solid #000;
+    background-color: #fff;
+    color: #000;
     cursor: pointer;
     border-radius: 5px;
     margin-left: 5px;
     transition: all 0.3s ease-in-out;
 }
-
-#send-btn:hover, #restart-btn:hover {
-    background-color: #0b5ed7;
-}
-
-/* Herstart-knop styling */
-#restart-btn {
-    background-color: #dc3545;
-}
-
+#send-btn:hover,
 #restart-btn:hover {
-    background-color: #b52a37;
+    background-color: #ccc;
 }
-
-/* Responsiveness */
+#restart-btn {
+    background-color: #fff;
+}
 @media (max-width: 600px) {
     #chat-container {
         width: 100%;
