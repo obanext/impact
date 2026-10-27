@@ -1,109 +1,138 @@
-import logging
-from flask import Flask, request, jsonify, render_template
-import openai
-import os
+"""OBA interview application (OpenAI Responses + Conversations API)."""
+
 import json
-import time
+import logging
+import os
+from pathlib import Path
+
 from dotenv import load_dotenv
+from flask import Flask, jsonify, render_template, request
+from openai import OpenAI
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
-app = Flask(__name__, static_folder='static', template_folder='templates')
-openai.api_key = os.getenv("OPENAI_API_KEY")
-ASSISTANT_ID = os.getenv("ASSISTANT_ID")
-CSV_PATH = "contextvragen.csv"
+BASE_DIR = Path(__file__).resolve().parent
+CSV_PATH = BASE_DIR / "contextvragen.csv"
+PROMPT_PATH = BASE_DIR / "interview_instructions.txt"
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+
+app = Flask(__name__, static_folder="static", template_folder="templates")
+
+
+def get_client():
+    """Create on demand, so missing deployment configuration is logged clearly."""
+    if not os.getenv("OPENAI_API_KEY"):
+        raise RuntimeError("OPENAI_API_KEY ontbreekt in de omgevingsvariabelen")
+    # Keep requests within the application's original ~25-second response window.
+    return OpenAI(timeout=23.0, max_retries=0)
+
+
+def get_instructions():
+    """Load locally editable instructions and the questionnaire for every turn."""
+    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+    csv_data = CSV_PATH.read_text(encoding="utf-8-sig")
+    return f"{prompt}\n\nVRAGENLIJST (CSV, puntkomma-gescheiden):\n{csv_data}"
+
 
 def parse_assistant_output(raw_text: str):
-    start_tag = "---JSON-START---"
-    end_tag = "---JSON-END---"
-    text_part = raw_text
-    json_part = None
-    if start_tag in raw_text and end_tag in raw_text:
-        before_json, after_start = raw_text.split(start_tag, 1)
-        json_section, after_end = after_start.split(end_tag, 1)
-        text_part = before_json.strip()
-        try:
-            json_part = json.loads(json_section.strip())
-        except json.JSONDecodeError:
-            pass
-    return text_part, json_part
+    """Preserve the response format expected by the existing front end."""
+    start_tag, end_tag = "---JSON-START---", "---JSON-END---"
+    raw_text = (raw_text or "").strip()
+    if start_tag not in raw_text or end_tag not in raw_text:
+        return raw_text, None
 
-@app.route('/')
+    before_json, rest = raw_text.split(start_tag, 1)
+    json_section, _ = rest.split(end_tag, 1)
+    try:
+        question = json.loads(json_section.strip())
+    except json.JSONDecodeError:
+        app.logger.warning("Ongeldige JSON in interviewrespons")
+        return raw_text, None
+
+    if not isinstance(question, dict) or not isinstance(question.get("vraag"), str):
+        app.logger.warning("Ongeldige vraagstructuur in interviewrespons")
+        return raw_text, None
+
+    return before_json.strip(), question
+
+
+def make_reply(response, conversation_id=None):
+    """Convert a Responses API result to the JSON the browser uses."""
+    if response.status != "completed":
+        raise RuntimeError(f"OpenAI response niet voltooid: {response.status}")
+    text, question = parse_assistant_output(response.output_text)
+    if not text and not question:
+        raise RuntimeError("OpenAI gaf geen leesbaar antwoord terug")
+
+    payload = {"assistant_text": text}
+    if question is not None:
+        payload["assistant_json"] = question
+    if conversation_id is not None:
+        # `thread_id` is a compatibility alias for older cached browsers.
+        payload["conversation_id"] = conversation_id
+        payload["thread_id"] = conversation_id
+    return jsonify(payload)
+
+
+def api_error(error):
+    app.logger.exception("Interview-API-fout")
+    # Avoid leaking credentials or internal exception details to survey participants.
+    return jsonify({"reply": "Er is een fout opgetreden bij de interviewservice."}), 502
+
+
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/start', methods=['POST'])
+
+@app.route("/start", methods=["POST"])
 def start():
     try:
-        thread = openai.beta.threads.create()
-        thread_id = thread.id
-        openai.beta.threads.messages.create(thread_id=thread_id, role="user", content="START")
-        if os.path.exists(CSV_PATH):
-            with open(CSV_PATH, "r", encoding="utf-8") as file:
-                csv_data = file.read()
-            openai.beta.threads.messages.create(
-                thread_id=thread_id,
-                role="user",
-                content=f"Hier is de dataset in CSV-formaat: \n\n{csv_data}"
-            )
-        else:
-            return jsonify({'reply': 'Fout: CSV-bestand niet gevonden'}), 500
-        run = openai.beta.threads.runs.create(thread_id=thread_id, assistant_id=ASSISTANT_ID)
-        start_time = time.time()
-        while True:
-            run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-            if run_status.status == "completed":
-                messages = openai.beta.threads.messages.list(thread_id=thread_id)
-                first_real_message = messages.data[0].content[0].text.value.strip()
-                text_part, json_part = parse_assistant_output(first_real_message)
-                if json_part:
-                    return jsonify({
-                        'assistant_text': text_part,
-                        'assistant_json': json_part,
-                        'thread_id': thread_id
-                    })
-                else:
-                    return jsonify({
-                        'assistant_text': text_part,
-                        'thread_id': thread_id
-                    })
-            if time.time() - start_time > 25:
-                return jsonify({'reply': 'API-response duurde te lang'}), 504
-            time.sleep(2)
-    except Exception as e:
-        return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
+        instructions = get_instructions()
+        client = get_client()
+        conversation = client.conversations.create()
+        response = client.responses.create(
+            model=OPENAI_MODEL,
+            conversation=conversation.id,
+            instructions=instructions,
+            input="START. Begin het interview met de eerste vraag.",
+            max_output_tokens=700,
+        )
+        return make_reply(response, conversation.id)
+    except Exception as error:
+        return api_error(error)
 
-@app.route('/chat', methods=['POST'])
+
+@app.route("/chat", methods=["POST"])
 def chat():
-    try:
-        data = request.get_json()
-        thread_id = data.get('thread_id')
-        user_message = data.get('message')
-        if not thread_id:
-            return jsonify({'reply': 'Geen actieve sessie. Probeer opnieuw.'}), 400
-        openai.beta.threads.messages.create(thread_id=thread_id, role="user", content=user_message)
-        run = openai.beta.threads.runs.create(thread_id=thread_id, assistant_id=ASSISTANT_ID)
-        start_time = time.time()
-        while True:
-            run_status = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-            if run_status.status == "completed":
-                messages = openai.beta.threads.messages.list(thread_id=thread_id)
-                last_message = messages.data[0].content[0].text.value.strip()
-                text_part, json_part = parse_assistant_output(last_message)
-                if json_part:
-                    return jsonify({
-                        'assistant_text': text_part,
-                        'assistant_json': json_part
-                    })
-                else:
-                    return jsonify({'assistant_text': text_part})
-            if time.time() - start_time > 25:
-                return jsonify({'reply': 'API-response duurde te lang'}), 504
-            time.sleep(2)
-    except Exception as e:
-        return jsonify({'reply': 'Er is een fout opgetreden.', 'error': str(e)}), 500
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"reply": "Ongeldig JSON-verzoek."}), 400
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))
+    conversation_id = data.get("conversation_id") or data.get("thread_id")
+    message = data.get("message")
+    if not isinstance(conversation_id, str) or not conversation_id.strip():
+        return jsonify({"reply": "Geen actieve sessie. Probeer opnieuw."}), 400
+    if not isinstance(message, str) or not message.strip():
+        return jsonify({"reply": "Er is geen antwoord ingevuld."}), 400
+    if len(message) > 4000:
+        return jsonify({"reply": "Het antwoord is te lang."}), 400
+
+    try:
+        client = get_client()
+        response = client.responses.create(
+            model=OPENAI_MODEL,
+            conversation=conversation_id,
+            instructions=get_instructions(),
+            input=message.strip(),
+            max_output_tokens=700,
+        )
+        return make_reply(response)
+    except Exception as error:
+        return api_error(error)
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", "8080"))
     app.run(host="0.0.0.0", port=port, threaded=True)

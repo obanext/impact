@@ -1,13 +1,13 @@
 const chatBox = document.getElementById('chat-box');
 const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
-const restartBtn = document.createElement("button");
-let threadId = null;
+const restartBtn = document.createElement('button');
+let conversationId = null;
 let currentQuestion = null;
 let questionCounter = 0;
 
-restartBtn.id = "restart-btn";
-restartBtn.textContent = "Herstart";
+restartBtn.id = 'restart-btn';
+restartBtn.textContent = 'Herstart';
 restartBtn.onclick = () => location.reload();
 document.getElementById('input-area').appendChild(restartBtn);
 
@@ -17,181 +17,146 @@ function appendMessage(role, text) {
     msgDiv.textContent = text;
     chatBox.appendChild(msgDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-function appendHtmlMessage(role, html) {
-    const msgDiv = document.createElement('div');
-    msgDiv.classList.add('message', role);
-    msgDiv.innerHTML = html;
-    chatBox.appendChild(msgDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
+    return msgDiv;
 }
 
 function showTypingIndicator() {
-    const typingIndicator = document.createElement('div');
-    typingIndicator.classList.add('typing-indicator');
-    typingIndicator.innerHTML = "<span></span><span></span><span></span>";
-    chatBox.appendChild(typingIndicator);
+    const indicator = document.createElement('div');
+    indicator.classList.add('typing-indicator');
+    for (let i = 0; i < 3; i++) indicator.appendChild(document.createElement('span'));
+    chatBox.appendChild(indicator);
     chatBox.scrollTop = chatBox.scrollHeight;
-    return typingIndicator;
+    return indicator;
+}
+
+async function parseApiResponse(response) {
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.reply || 'De interviewservice is niet beschikbaar.');
+    return data;
+}
+
+function handleReply(data) {
+    if (data.assistant_text) appendMessage('assistant', data.assistant_text);
+    if (data.assistant_json) {
+        handleQuestion(data.assistant_json);
+    } else {
+        currentQuestion = null;
+        // An assistant reply without a question marks the end of the interview.
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+    }
 }
 
 async function startInterview() {
-    appendMessage('assistant', "Hoi! We willen je wat vragen stellen om de OBA beter voor je te maken. Het duurt ongeveer twee minuten en je krijgt een plaatje of een wens, bedankt alvast! De vragen worden nu geladen.");
+    userInput.disabled = true;
+    sendBtn.disabled = true;
+    appendMessage('assistant', 'Hoi! We willen je wat vragen stellen om de OBA beter voor je te maken. Het duurt ongeveer twee minuten en je krijgt een plaatje of een wens, bedankt alvast! De vragen worden nu geladen.');
     const typingIndicator = showTypingIndicator();
     try {
-        const response = await fetch('/start', { method: 'POST' });
-        const data = await response.json();
-        typingIndicator.remove();
-        if (data.thread_id) {
-            threadId = data.thread_id;
-            if (data.assistant_text) appendMessage('assistant', data.assistant_text);
-            if (data.assistant_json) handleQuestion(data.assistant_json);
-        } else {
-            throw new Error("Geen thread_id ontvangen");
+        const data = await parseApiResponse(await fetch('/start', { method: 'POST' }));
+        conversationId = data.conversation_id || data.thread_id;
+        if (!conversationId) throw new Error('Geen sessie-ID ontvangen.');
+        handleReply(data);
+        if (currentQuestion) {
+            userInput.disabled = false;
+            sendBtn.disabled = false;
         }
     } catch (error) {
+        appendMessage('assistant', 'Fout bij starten van interview: ' + error.message);
+    } finally {
         typingIndicator.remove();
-        appendMessage('assistant', 'Fout bij starten van interview.');
     }
 }
 
 async function sendMessage() {
-    if (!threadId) {
-        appendMessage('assistant', 'Fout: Geen actieve sessie. Vernieuw de pagina.');
-        return;
-    }
-
+    if (!conversationId || sendBtn.disabled) return;
     let text = userInput.value.trim();
-    userInput.value = '';
 
     if (currentQuestion) {
         const qSoort = currentQuestion.soort;
-        const qName = "choice_q" + questionCounter;
-
-        if (qSoort === "1KEUZE") {
+        const qName = 'choice_q' + questionCounter;
+        if (qSoort === '1KEUZE') {
             const chosen = document.querySelector(`input[name="${qName}"]:checked`);
-            if (chosen) {
-                text = chosen.value;
-            } else if (!text) {
-                appendMessage('assistant', 'Je hebt nog geen keuze gemaakt.');
-                return;
-            }
-        } else if (qSoort === "MEERKEUZE") {
+            if (chosen) text = chosen.value;
+        } else if (qSoort === 'MEERKEUZE') {
             const chosen = document.querySelectorAll(`input[name="${qName}"]:checked`);
-            if (chosen.length > 0) {
-                const values = Array.from(chosen).map(ch => ch.value);
-                text = values.join(", ");
-            } else if (!text) {
-                appendMessage('assistant', 'Je hebt nog geen keuze(s) geselecteerd.');
-                return;
-            }
-        } else if (qSoort === "5SCHAAL") {
+            if (chosen.length) text = Array.from(chosen).map(ch => ch.value).join(', ');
+        } else if (qSoort === '5SCHAAL') {
             const slider = document.getElementById(`rangeInput_${questionCounter}`);
-            if (slider) {
-                text = slider.value;
-            }
-            if (!text) {
-                appendMessage('assistant', 'Schuif de balk naar een waarde tussen 1 en 5.');
-                return;
-            }
-        } else if (qSoort === "OPEN") {
-            if (!text) {
-                appendMessage('assistant', 'Je hebt geen antwoord ingevuld.');
-                return;
-            }
+            if (slider) text = slider.value;
         }
     }
-
     if (!text) {
-        appendMessage('assistant', 'Je hebt nog geen invoer gegeven.');
+        appendMessage('assistant', 'Je hebt nog geen antwoord ingevuld of geselecteerd.');
         return;
     }
-
+    userInput.value = '';
     appendMessage('user', text);
     userInput.disabled = true;
     sendBtn.disabled = true;
     const typingIndicator = showTypingIndicator();
-
     try {
-        const response = await fetch('/chat', {
+        const data = await parseApiResponse(await fetch('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ thread_id: threadId, message: text })
-        });
-        const data = await response.json();
-        typingIndicator.remove();
-
-        if (data.assistant_text) {
-            appendMessage('assistant', data.assistant_text);
-        }
-        if (data.assistant_json) {
-            handleQuestion(data.assistant_json);
-        } else {
-            currentQuestion = null;
-        }
+            body: JSON.stringify({ conversation_id: conversationId, message: text }),
+        }));
+        handleReply(data);
     } catch (error) {
-        typingIndicator.remove();
-        appendMessage('assistant', 'Er is een fout opgetreden.');
+        // Preserve a failed answer so the participant can retry it.
+        userInput.value = text;
+        appendMessage('assistant', 'Er is een fout opgetreden: ' + error.message);
     } finally {
-        userInput.disabled = false;
-        sendBtn.disabled = false;
+        typingIndicator.remove();
+        if (currentQuestion) {
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+        }
     }
 }
 
 function handleQuestion(questionData) {
+    if (!questionData || typeof questionData.vraag !== 'string') return;
     currentQuestion = questionData;
     questionCounter++;
+    const qName = 'choice_q' + questionCounter;
+    const container = appendMessage('assistant', questionData.vraag);
+    const options = Array.isArray(questionData.opties) ? questionData.opties : [];
 
-    if (!questionData || !questionData.vraag) return;
-    let html = questionData.vraag + "<br><br>";
-    const qName = "choice_q" + questionCounter;
-
-    if (questionData.opties && questionData.opties.length > 0) {
-        if (questionData.soort === "1KEUZE") {
-            questionData.opties.forEach(option => {
-                html += `
-                  <label style="display:block;margin-bottom:5px;">
-                      <input type="radio" name="${qName}" value="${option}" />
-                      ${option}
-                  </label>
-                `;
-            });
-            appendHtmlMessage('assistant', html);
-        } else if (questionData.soort === "MEERKEUZE") {
-            questionData.opties.forEach(option => {
-                html += `
-                  <label style="display:block;margin-bottom:5px;">
-                      <input type="checkbox" name="${qName}" value="${option}" />
-                      ${option}
-                  </label>
-                `;
-            });
-            appendHtmlMessage('assistant', html);
-        } else if (questionData.soort === "5SCHAAL") {
-            html += `
-              <input id="rangeInput_${questionCounter}" type="range" min="1" max="5" step="1" value="3" list="tickmarks_${questionCounter}" />
-              <datalist id="tickmarks_${questionCounter}">
-                <option value="1" label="1"></option>
-                <option value="2"></option>
-                <option value="3" label="3"></option>
-                <option value="4"></option>
-                <option value="5" label="5"></option>
-              </datalist>
-            `;
-            appendHtmlMessage('assistant', html);
-        } else {
-            // Tekstveld in de chat is niet gewenst bij OPEN, dus user typt in #user-input
-            appendHtmlMessage('assistant', html);
+    if (questionData.soort === '1KEUZE' || questionData.soort === 'MEERKEUZE') {
+        for (const option of options) {
+            const label = document.createElement('label');
+            label.style.display = 'block';
+            label.style.marginTop = '8px';
+            const choice = document.createElement('input');
+            choice.type = questionData.soort === '1KEUZE' ? 'radio' : 'checkbox';
+            choice.name = qName;
+            choice.value = String(option);
+            label.appendChild(choice);
+            label.appendChild(document.createTextNode(' ' + String(option)));
+            container.appendChild(label);
         }
-    } else {
-        // OPEN vraag zonder opties: user typt in #user-input
-        appendMessage('assistant', questionData.vraag);
+    } else if (questionData.soort === '5SCHAAL') {
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '1';
+        slider.max = '5';
+        slider.step = '1';
+        slider.value = '3';
+        slider.id = 'rangeInput_' + questionCounter;
+        slider.setAttribute('aria-label', 'Score van 1 tot en met 5');
+        const value = document.createElement('span');
+        value.textContent = ' ' + slider.value;
+        slider.addEventListener('input', () => { value.textContent = ' ' + slider.value; });
+        container.appendChild(document.createElement('div'));
+        container.appendChild(slider);
+        container.appendChild(value);
     }
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 sendBtn.addEventListener('click', sendMessage);
-userInput.addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') sendMessage();
+userInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') sendMessage();
 });
-window.onload = startInterview;
+window.addEventListener('load', startInterview);
