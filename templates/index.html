@@ -1,19 +1,32 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="nl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interview Assistant</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OBA Impactmeter</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div id="chat-container">
-        <div id="chat-box"></div>
-        <div id="input-area">
-            <input type="text" id="user-input" placeholder="Typ je bericht...">
-            <button id="send-btn">Verstuur</button>
+<main id="chat-container">
+    <header id="chat-header">
+        <strong>OBA Impactmeter</strong>
+        <div class="heading-actions">
+            <label for="language-select">Taal / Language</label>
+            <select id="language-select" aria-label="Interviewtaal">
+                <option value="nl">Nederlands</option>
+                <option value="en">English</option>
+            </select>
+            <button type="button" id="restart-btn">Herstart / Restart</button>
         </div>
+        <small id="progress" aria-live="polite"></small>
+    </header>
+    <section id="chat-box" role="log" aria-label="Interview" aria-live="polite"></section>
+    <section id="results" hidden aria-live="polite"></section>
+    <div id="input-area">
+        <input type="text" id="user-input" aria-label="Antwoord" placeholder="Typ je antwoord..." autocomplete="off" disabled>
+        <button type="button" id="send-btn" disabled>Verstuur / Send</button>
     </div>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</main>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

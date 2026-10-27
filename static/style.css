@@ -179,3 +179,21 @@ input[type='range']::-moz-range-thumb {
 input[type='range']::-moz-range-progress {
     background: transparent;
 }
+/* Additions to the original layout: language, progress and output controls */
+#chat-header { padding: 12px; border-bottom: 1px solid #222; display: flex;
+    gap: 10px; flex-direction: column; }
+.heading-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.heading-actions label, #progress { font-size: 12px; }
+#language-select { font-size: 14px; padding: 5px; }
+#restart-btn { margin: 0 0 0 auto; padding: 5px 9px; }
+.choice { display: block; margin-top: 10px; cursor: pointer; }
+.choice input { margin-right: 5px; }
+#results { border-top: 1px solid #ccc; padding: 10px; }
+#results[hidden] { display: none; }
+#results p { margin-bottom: 9px; }
+#results button { border: 1px solid #111; background: #fff; padding: 9px;
+    margin: 3px 4px 3px 0; border-radius: 4px; cursor: pointer; }
+#results button:disabled { opacity: .5; cursor: not-allowed; }
+.result-image { display: block; width: 100%; max-width: 400px; margin: 8px 0; }
+.message a { display: block; padding: 8px 0; }
+.message { overflow-wrap: anywhere; }
